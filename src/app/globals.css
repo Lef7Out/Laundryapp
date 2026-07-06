@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: #ffffff;
+  color: #101828;
+}
+
+/* Signature clothesline divider: dashed line with two "peg" dots */
+.clothesline {
+  position: relative;
+  height: 1px;
+  background-image: linear-gradient(
+    to right,
+    #d0d9e8 0,
+    #d0d9e8 8px,
+    transparent 8px,
+    transparent 16px
+  );
+  background-size: 16px 1px;
+  margin: 2.5rem 0;
+}
+
+.clothesline::before,
+.clothesline::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  background: #f5a524;
+}
+
+.clothesline::before {
+  left: 12%;
+}
+
+.clothesline::after {
+  right: 12%;
+}
+
+/* Focus visibility for accessibility */
+:focus-visible {
+  outline: 2px solid #3454d1;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
