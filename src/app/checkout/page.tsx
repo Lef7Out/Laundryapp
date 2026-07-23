@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useOrder } from "@/context/OrderContext";
-import { BANK_DETAILS, CLOTHING_ITEMS, WHATSAPP_NUMBER } from "@/lib/config";
+import { CLOTHING_ITEMS, WHATSAPP_NUMBER } from "@/lib/config";
 import type { ClothingItemId, UserProfile } from "@/types";
 
 export default function CheckoutPage() {
@@ -12,7 +12,7 @@ export default function CheckoutPage() {
   const { order, totalItems, totalPrice, resetOrder } = useOrder();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  
 
   useEffect(() => {
     async function loadSession() {
@@ -45,12 +45,6 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  function handleCopy(field: string, value: string) {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 1500);
-    });
-  }
 
   function buildWhatsAppMessage(): string {
     if (!profile) return "";
@@ -87,10 +81,8 @@ export default function CheckoutPage() {
     lines.push(`*Total due:* ₦${totalPrice.toLocaleString("en-NG")}`);
     lines.push("");
     lines.push(
-      `*Payment Sent* — transferred to ${BANK_DETAILS.bankName} (${BANK_DETAILS.accountNumber}).`
-    );
-    lines.push("Please confirm and let me know the pickup window. Thank you!");
-
+  "Please send your account details so I can make the transfer, and let me know the pickup window. Thank you!"
+);
     return lines.join("\n");
   }
 
@@ -116,11 +108,11 @@ export default function CheckoutPage() {
     <main className="min-h-screen px-6 py-8 pb-16">
       <div className="mx-auto max-w-lg">
         <h1 className="font-display text-2xl font-bold text-ink">
-          Confirm &amp; pay
-        </h1>
-        <p className="mt-1 text-sm text-ink/60">
-          Transfer the total below, then send your order on WhatsApp.
-        </p>
+  Review &amp; send
+</h1>
+<p className="mt-1 text-sm text-ink/60">
+  Send your order on WhatsApp — we'll reply with payment details there.
+</p>
 
         {/* Order summary card */}
         <section className="mt-6 rounded-card border border-line p-5 shadow-soft">
@@ -167,52 +159,6 @@ export default function CheckoutPage() {
               ₦{formattedTotal}
             </p>
           </div>
-        </section>
-
-        {/* Bank transfer instructions */}
-        <section className="mt-5 rounded-card border border-line bg-sky/50 p-5">
-          <h2 className="font-display text-base font-semibold text-ink">
-            Bank transfer details
-          </h2>
-          <div className="mt-3 space-y-3">
-            <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
-              <div>
-                <p className="text-xs text-ink/50">Bank</p>
-                <p className="text-sm font-medium text-ink">
-                  {BANK_DETAILS.bankName}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                handleCopy("account", BANK_DETAILS.accountNumber)
-              }
-              className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-3 text-left transition hover:bg-sky"
-            >
-              <div>
-                <p className="text-xs text-ink/50">Account number</p>
-                <p className="font-mono text-sm font-medium text-ink">
-                  {BANK_DETAILS.accountNumber}
-                </p>
-              </div>
-              <span className="text-xs font-semibold text-suds">
-                {copiedField === "account" ? "Copied" : "Copy"}
-              </span>
-            </button>
-            <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
-              <div>
-                <p className="text-xs text-ink/50">Account name</p>
-                <p className="text-sm font-medium text-ink">
-                  {BANK_DETAILS.accountName}
-                </p>
-              </div>
-            </div>
-          </div>
-          <p className="mt-3 text-xs leading-relaxed text-ink/60">
-            Transfer the exact total above, then tap the button below. We'll
-            confirm your payment on WhatsApp before your pickup is scheduled.
-          </p>
         </section>
 
         <button

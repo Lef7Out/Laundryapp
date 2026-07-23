@@ -3,13 +3,12 @@
 
 export const APP_NAME = "HostelWash";
 
-// Full international format, no "+", no spaces (WhatsApp API requirement).
-// Example: Nigerian number 0803 123 4567 -> "2348031234567"
-export const WHATSAPP_NUMBER = "2348031234567";
+
+export const WHATSAPP_NUMBER = "2349136110554";
 
 export const BANK_DETAILS = {
   bankName: "Moniepoint MFB",
-  accountNumber: "1234567890",
+  accountNumber: "9136110554",
   accountName: "HostelWash Laundry Services",
 };
 
@@ -31,6 +30,6 @@ export const CLOTHING_ITEMS = [
     unitNote: "per piece",
   },
   { id: "socks", label: "Socks", price: 400, unitNote: "per pair" },
-  { id: "bedsheets", label: "Bedsheets", price: 700, unitNote: "per piece" },
+  { id: "bedsheets", label: "Bedsheets/Towels", price: 700, unitNote: "per piece" },
   { id: "duvets", label: "Duvets", price: 1500, unitNote: "per piece" },
 ] as const;
