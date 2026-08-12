@@ -5,7 +5,7 @@ export const APP_NAME = "HostelWash";
 
 // Full international format, no "+", no spaces (WhatsApp API requirement).
 // Example: Nigerian number 0803 123 4567 -> "2348031234567"
-export const WHATSAPP_NUMBER = "2348031234567";
+export const WHATSAPP_NUMBER = "2349136110554";
 
 export const BANK_DETAILS = {
   bankName: "Moniepoint MFB",
