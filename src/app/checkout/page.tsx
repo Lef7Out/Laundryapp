@@ -1,18 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useOrder } from "@/context/OrderContext";
-import { CLOTHING_ITEMS, WHATSAPP_NUMBER } from "@/lib/config";
+import {
+  CLOTHING_ITEMS,
+  DELIVERY_FEE,
+  EXPRESS_FEE,
+  PICKUP_FEE,
+  WHATSAPP_NUMBER,
+} from "@/lib/config";
 import type { ClothingItemId, UserProfile } from "@/types";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { order, totalItems, totalPrice, resetOrder } = useOrder();
+  const { order, totalItems, itemsTotal, totalPrice, logistics, resetOrder } =
+    useOrder();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
 
   useEffect(() => {
     async function loadSession() {
@@ -45,7 +52,6 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-
   function buildWhatsAppMessage(): string {
     if (!profile) return "";
 
@@ -77,12 +83,33 @@ export default function CheckoutPage() {
     });
 
     lines.push("");
+    lines.push("*Delivery:*");
+    lines.push(
+      `• Collection — ${
+        logistics.collectionMethod === "pickup"
+          ? `Pickup from hostel (₦${PICKUP_FEE})`
+          : "Student drops off (free)"
+      }`
+    );
+    lines.push(
+      `• Return — ${
+        logistics.returnMethod === "delivery"
+          ? `Delivery to hostel (₦${DELIVERY_FEE})`
+          : "Student picks up (free)"
+      }`
+    );
+    if (logistics.express) {
+      lines.push(`• Express turnaround (+₦${EXPRESS_FEE})`);
+    }
+
+    lines.push("");
     lines.push(`*Total items:* ${totalItems}`);
     lines.push(`*Total due:* ₦${totalPrice.toLocaleString("en-NG")}`);
     lines.push("");
     lines.push(
-  "Please send your account details so I can make the transfer, and let me know the pickup window. Thank you!"
-);
+      "Please send your account details so I can make the transfer, and let me know the pickup window. Thank you!"
+    );
+
     return lines.join("\n");
   }
 
@@ -102,17 +129,25 @@ export default function CheckoutPage() {
     );
   }
 
+  const formattedItemsTotal = itemsTotal.toLocaleString("en-NG");
   const formattedTotal = totalPrice.toLocaleString("en-NG");
 
   return (
     <main className="min-h-screen px-6 py-8 pb-16">
       <div className="mx-auto max-w-lg">
+        <Link
+          href="/select-clothes"
+          className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-suds"
+        >
+          ← Edit order
+        </Link>
+
         <h1 className="font-display text-2xl font-bold text-ink">
-  Review &amp; send
-</h1>
-<p className="mt-1 text-sm text-ink/60">
-  Send your order on WhatsApp — we'll reply with payment details there.
-</p>
+          Review &amp; send
+        </h1>
+        <p className="mt-1 text-sm text-ink/60">
+          Send your order on WhatsApp — we'll reply with payment details there.
+        </p>
 
         {/* Order summary card */}
         <section className="mt-6 rounded-card border border-line p-5 shadow-soft">
@@ -150,6 +185,43 @@ export default function CheckoutPage() {
               );
             })}
           </div>
+
+          <div className="mt-3 flex items-center justify-between text-sm">
+            <p className="text-ink/70">Items subtotal</p>
+            <p className="font-mono text-ink/80">₦{formattedItemsTotal}</p>
+          </div>
+
+          {(logistics.collectionMethod === "pickup" ||
+            logistics.returnMethod === "delivery" ||
+            logistics.express) && (
+            <div className="mt-3 space-y-1.5 border-t border-line pt-3">
+              {logistics.collectionMethod === "pickup" && (
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-ink/70">Pickup from hostel</p>
+                  <p className="font-mono text-ink/80">
+                    +₦{PICKUP_FEE.toLocaleString("en-NG")}
+                  </p>
+                </div>
+              )}
+              {logistics.returnMethod === "delivery" && (
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-ink/70">Delivery to hostel</p>
+                  <p className="font-mono text-ink/80">
+                    +₦{DELIVERY_FEE.toLocaleString("en-NG")}
+                  </p>
+                </div>
+              )}
+              {logistics.express && (
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-ink/70">Express</p>
+                  <p className="font-mono text-ink/80">
+                    +₦{EXPRESS_FEE.toLocaleString("en-NG")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="clothesline" aria-hidden="true" />
           <div className="flex items-center justify-between">
             <p className="font-display text-base font-semibold text-ink">
@@ -160,6 +232,12 @@ export default function CheckoutPage() {
             </p>
           </div>
         </section>
+
+        <p className="mt-4 text-xs leading-relaxed text-ink/60">
+          Tapping the button below sends your order rundown straight to our
+          WhatsApp line. We'll reply there with the account to pay into — once
+          you've paid, just let us know in that same chat.
+        </p>
 
         <button
           type="button"

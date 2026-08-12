@@ -33,3 +33,16 @@ export interface UserProfile {
   hostelRoom: string;
   email: string;
 }
+
+// Leg 1: getting dirty clothes to the laundry
+export type CollectionMethod = "dropoff" | "pickup";
+
+// Leg 2: getting clean clothes back to the student
+export type ReturnMethod = "selfPickup" | "delivery";
+
+export interface LogisticsState {
+  collectionMethod: CollectionMethod;
+  returnMethod: ReturnMethod;
+  express: boolean;
+}
+

@@ -9,10 +9,18 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { CLOTHING_ITEMS } from "@/lib/config";
-import type { ClothingItemId, ColourVariant, OrderState } from "@/types";
+import { CLOTHING_ITEMS, DELIVERY_FEE, EXPRESS_FEE, PICKUP_FEE } from "@/lib/config";
+import type {
+  ClothingItemId,
+  CollectionMethod,
+  ColourVariant,
+  LogisticsState,
+  OrderState,
+  ReturnMethod,
+} from "@/types";
 
-const STORAGE_KEY = "hostelwash_order_v1";
+const ORDER_STORAGE_KEY = "hostelwash_order_v1";
+const LOGISTICS_STORAGE_KEY = "hostelwash_logistics_v1";
 
 function buildEmptyState(): OrderState {
   const state = {} as OrderState;
@@ -22,16 +30,36 @@ function buildEmptyState(): OrderState {
   return state;
 }
 
+function buildDefaultLogistics(): LogisticsState {
+  return {
+    collectionMethod: "dropoff",
+    returnMethod: "selfPickup",
+    express: false,
+  };
+}
+
 function loadInitialState(): OrderState {
   if (typeof window === "undefined") return buildEmptyState();
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(ORDER_STORAGE_KEY);
     if (!raw) return buildEmptyState();
     const parsed = JSON.parse(raw) as Partial<OrderState>;
     const base = buildEmptyState();
     return { ...base, ...parsed };
   } catch {
     return buildEmptyState();
+  }
+}
+
+function loadInitialLogistics(): LogisticsState {
+  if (typeof window === "undefined") return buildDefaultLogistics();
+  try {
+    const raw = window.localStorage.getItem(LOGISTICS_STORAGE_KEY);
+    if (!raw) return buildDefaultLogistics();
+    const parsed = JSON.parse(raw) as Partial<LogisticsState>;
+    return { ...buildDefaultLogistics(), ...parsed };
+  } catch {
+    return buildDefaultLogistics();
   }
 }
 
@@ -49,19 +77,41 @@ interface OrderContextValue {
   ) => void;
   resetOrder: () => void;
   totalItems: number;
+  /** Sum of clothing items only, excluding pickup/delivery/express fees. */
+  itemsTotal: number;
+  /** Sum of any pickup, delivery, and express fees currently selected. */
+  logisticsTotal: number;
+  /** itemsTotal + logisticsTotal — the grand total to charge/display. */
   totalPrice: number;
   getItemSubtotal: (itemId: ClothingItemId) => number;
+  logistics: LogisticsState;
+  setCollectionMethod: (method: CollectionMethod) => void;
+  setReturnMethod: (method: ReturnMethod) => void;
+  setExpress: (value: boolean) => void;
 }
 
 const OrderContext = createContext<OrderContextValue | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [order, setOrder] = useState<OrderState>(() => loadInitialState());
+  const [logistics, setLogistics] = useState<LogisticsState>(() =>
+    loadInitialLogistics()
+  );
 
-  const persist = useCallback((next: OrderState) => {
+  const persistOrder = useCallback((next: OrderState) => {
     setOrder(next);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      window.localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
+    }
+  }, []);
+
+  const persistLogistics = useCallback((next: LogisticsState) => {
+    setLogistics(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        LOGISTICS_STORAGE_KEY,
+        JSON.stringify(next)
+      );
     }
   }, []);
 
@@ -78,7 +128,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           },
         };
         if (typeof window !== "undefined") {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          window.localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
         }
         return next;
       });
@@ -98,7 +148,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           },
         };
         if (typeof window !== "undefined") {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          window.localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
         }
         return next;
       });
@@ -107,8 +157,30 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   );
 
   const resetOrder = useCallback(() => {
-    persist(buildEmptyState());
-  }, [persist]);
+    persistOrder(buildEmptyState());
+    persistLogistics(buildDefaultLogistics());
+  }, [persistOrder, persistLogistics]);
+
+  const setCollectionMethod = useCallback(
+    (method: CollectionMethod) => {
+      persistLogistics({ ...logistics, collectionMethod: method });
+    },
+    [logistics, persistLogistics]
+  );
+
+  const setReturnMethod = useCallback(
+    (method: ReturnMethod) => {
+      persistLogistics({ ...logistics, returnMethod: method });
+    },
+    [logistics, persistLogistics]
+  );
+
+  const setExpress = useCallback(
+    (value: boolean) => {
+      persistLogistics({ ...logistics, express: value });
+    },
+    [logistics, persistLogistics]
+  );
 
   const priceMap = useMemo(() => {
     const map = {} as Record<ClothingItemId, number>;
@@ -134,7 +206,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     );
   }, [order]);
 
-  const totalPrice = useMemo(() => {
+  const itemsTotal = useMemo(() => {
     return (Object.keys(order) as ClothingItemId[]).reduce((sum, itemId) => {
       const counts = order[itemId];
       const price = priceMap[itemId];
@@ -142,14 +214,30 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }, 0);
   }, [order, priceMap]);
 
+  const logisticsTotal = useMemo(() => {
+    let sum = 0;
+    if (logistics.collectionMethod === "pickup") sum += PICKUP_FEE;
+    if (logistics.returnMethod === "delivery") sum += DELIVERY_FEE;
+    if (logistics.express) sum += EXPRESS_FEE;
+    return sum;
+  }, [logistics]);
+
+  const totalPrice = itemsTotal + logisticsTotal;
+
   const value: OrderContextValue = {
     order,
     updateCount,
     setCount,
     resetOrder,
     totalItems,
+    itemsTotal,
+    logisticsTotal,
     totalPrice,
     getItemSubtotal,
+    logistics,
+    setCollectionMethod,
+    setReturnMethod,
+    setExpress,
   };
 
   return (
