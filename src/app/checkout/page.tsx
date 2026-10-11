@@ -5,21 +5,36 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useOrder } from "@/context/OrderContext";
+import OptionCard from "@/components/OptionCard";
 import {
   CLOTHING_ITEMS,
   DELIVERY_FEE,
-  EXPRESS_FEE,
   PICKUP_FEE,
   WHATSAPP_NUMBER,
 } from "@/lib/config";
-import type { ClothingItemId, UserProfile } from "@/types";
+import { getHoursStatus } from "@/lib/hours";
+import type { ClothingItemId, OrderItemLine, UserProfile } from "@/types";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { order, totalItems, itemsTotal, totalPrice, logistics, resetOrder } =
-    useOrder();
+  const {
+    order,
+    totalItems,
+    itemsTotal,
+    logisticsTotal,
+    totalPrice,
+    logistics,
+    setCollectionMethod,
+    setReturnMethod,
+    resetOrder,
+  } = useOrder();
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ ref: string; url: string } | null>(null);
 
   useEffect(() => {
     async function loadSession() {
@@ -38,6 +53,7 @@ export default function CheckoutPage() {
       }
 
       const metadata = session.user.user_metadata ?? {};
+      setUserId(session.user.id);
       setProfile({
         fullName: metadata.full_name ?? "Student",
         phoneNumber: metadata.phone_number ?? "Not provided",
@@ -48,15 +64,34 @@ export default function CheckoutPage() {
     }
 
     loadSession();
-    // Only run on mount; totalItems check intentionally uses the value at mount time.
+    // Only run on mount; the totalItems check intentionally uses the value at mount time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  function buildWhatsAppMessage(): string {
+  function buildItemLines(): OrderItemLine[] {
+    const lines: OrderItemLine[] = [];
+    CLOTHING_ITEMS.forEach((item) => {
+      const itemId = item.id as ClothingItemId;
+      const counts = order[itemId];
+      const pieces = counts.white + counts.coloured;
+      if (pieces === 0) return;
+      lines.push({
+        id: itemId,
+        label: item.label,
+        white: counts.white,
+        coloured: counts.coloured,
+        subtotal: pieces * item.price,
+      });
+    });
+    return lines;
+  }
+
+  function buildWhatsAppMessage(ref: string, isAfterHours: boolean): string {
     if (!profile) return "";
 
     const lines: string[] = [];
     lines.push("*New Laundry Order — HostelWash*");
+    lines.push(`*Ref:* ${ref}`);
     lines.push("");
     lines.push(`*Name:* ${profile.fullName}`);
     lines.push(`*Room:* ${profile.hostelRoom}`);
@@ -64,19 +99,12 @@ export default function CheckoutPage() {
     lines.push("");
     lines.push("*Order rundown:*");
 
-    CLOTHING_ITEMS.forEach((item) => {
-      const itemId = item.id as ClothingItemId;
-      const counts = order[itemId];
-      const pieces = counts.white + counts.coloured;
-      if (pieces === 0) return;
-
+    buildItemLines().forEach((line) => {
       const parts: string[] = [];
-      if (counts.white > 0) parts.push(`${counts.white} white`);
-      if (counts.coloured > 0) parts.push(`${counts.coloured} coloured`);
-
-      const lineTotal = pieces * item.price;
+      if (line.white > 0) parts.push(`${line.white} white`);
+      if (line.coloured > 0) parts.push(`${line.coloured} coloured`);
       lines.push(
-        `• ${item.label} — ${parts.join(", ")} (₦${lineTotal.toLocaleString(
+        `• ${line.label} — ${parts.join(", ")} (₦${line.subtotal.toLocaleString(
           "en-NG"
         )})`
       );
@@ -87,24 +115,25 @@ export default function CheckoutPage() {
     lines.push(
       `• Collection — ${
         logistics.collectionMethod === "pickup"
-          ? `Pickup from hostel (₦${PICKUP_FEE})`
-          : "Student drops off (free)"
+          ? `Pickup from my room (₦${PICKUP_FEE})`
+          : "I'll drop it off (free)"
       }`
     );
     lines.push(
       `• Return — ${
         logistics.returnMethod === "delivery"
-          ? `Delivery to hostel (₦${DELIVERY_FEE})`
-          : "Student picks up (free)"
+          ? `Delivery to my room (₦${DELIVERY_FEE})`
+          : "I'll collect it (free)"
       }`
     );
-    if (logistics.express) {
-      lines.push(`• Express turnaround (+₦${EXPRESS_FEE})`);
-    }
 
     lines.push("");
     lines.push(`*Total items:* ${totalItems}`);
     lines.push(`*Total due:* ₦${totalPrice.toLocaleString("en-NG")}`);
+    if (isAfterHours) {
+      lines.push("");
+      lines.push("_Sent outside operating hours._");
+    }
     lines.push("");
     lines.push(
       "Please send your account details so I can make the transfer, and let me know the pickup window. Thank you!"
@@ -113,12 +142,95 @@ export default function CheckoutPage() {
     return lines.join("\n");
   }
 
-  function handleSendToWhatsApp() {
-    const message = buildWhatsAppMessage();
-    const encoded = encodeURIComponent(message);
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+  async function handleSend() {
+    if (!profile || !userId || isSending) return;
+
+    setIsSending(true);
+    setSendError(null);
+
+    // Open the tab right now, while the tap still counts as a user action.
+    // Browsers block window.open() when it's called after an await.
+    const popup = window.open("", "_blank");
+
+    const hours = getHoursStatus(new Date());
+
+    const { data, error } = await supabase
+      .from("orders")
+      .insert({
+        user_id: userId,
+        customer_name: profile.fullName,
+        phone: profile.phoneNumber,
+        hostel_room: profile.hostelRoom,
+        items: buildItemLines(),
+        items_total: itemsTotal,
+        logistics_total: logisticsTotal,
+        total: totalPrice,
+        collection_method: logistics.collectionMethod,
+        return_method: logistics.returnMethod,
+        after_hours: !hours.isOpen,
+      })
+      .select("ref")
+      .single();
+
+    if (error || !data) {
+      popup?.close();
+      setSendError(
+        "We couldn't save your order. Check your connection and try again."
+      );
+      setIsSending(false);
+      return;
+    }
+
+    const ref = data.ref as string;
+    const message = buildWhatsAppMessage(ref, !hours.isOpen);
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+      message
+    )}`;
+
+    if (popup) {
+      popup.location.href = url;
+    }
+
+    setSent({ ref, url });
     resetOrder();
+    setIsSending(false);
+  }
+
+  if (sent) {
+    return (
+      <main className="min-h-screen px-6 py-12">
+        <div className="mx-auto max-w-lg text-center">
+          <p className="font-mono text-xs font-medium text-marigold">
+            ORDER {sent.ref}
+          </p>
+          <h1 className="mt-3 font-display text-2xl font-bold text-ink">
+            Order saved — finish on WhatsApp
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink/65">
+            Your order is recorded. Send the pre-filled message in WhatsApp and
+            we&apos;ll reply with payment details. Quote {sent.ref} if you need
+            to follow up.
+          </p>
+          <a
+            href={sent.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 flex w-full items-center justify-center rounded-full bg-whatsapp px-6 py-4 text-sm font-semibold text-white shadow-soft transition hover:bg-whatsapp-dark"
+          >
+            Open WhatsApp
+          </a>
+          <p className="mt-2 text-xs text-ink/50">
+            WhatsApp didn&apos;t open on its own? Tap the button above.
+          </p>
+          <Link
+            href="/"
+            className="mt-6 inline-block text-sm font-medium text-suds"
+          >
+            Back to home
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   if (isLoading || !profile) {
@@ -129,6 +241,7 @@ export default function CheckoutPage() {
     );
   }
 
+  const hours = getHoursStatus(new Date());
   const formattedItemsTotal = itemsTotal.toLocaleString("en-NG");
   const formattedTotal = totalPrice.toLocaleString("en-NG");
 
@@ -146,11 +259,62 @@ export default function CheckoutPage() {
           Review &amp; send
         </h1>
         <p className="mt-1 text-sm text-ink/60">
-          Send your order on WhatsApp — we'll reply with payment details there.
+          Choose how your laundry travels, then send your order on WhatsApp.
         </p>
 
+        {/* Pickup & delivery */}
+        <section className="mt-6 rounded-card border border-line p-5">
+          <h2 className="font-display text-lg font-semibold text-ink">
+            Stay in. We&apos;ll come to you.
+          </h2>
+          <p className="mt-1 text-sm text-ink/60">
+            No need to move — we can collect from your room and bring it back
+            clean.
+          </p>
+
+          <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-ink/50">
+            Getting it to us
+          </p>
+          <div className="mt-2 space-y-2">
+            <OptionCard
+              label="We pick it up from your room"
+              description="No need to move. We come to you."
+              feeLabel={`+₦${PICKUP_FEE}`}
+              isSelected={logistics.collectionMethod === "pickup"}
+              onSelect={() => setCollectionMethod("pickup")}
+            />
+            <OptionCard
+              label="I'll drop it off"
+              description="Bring it to us yourself"
+              feeLabel="Free"
+              isSelected={logistics.collectionMethod === "dropoff"}
+              onSelect={() => setCollectionMethod("dropoff")}
+            />
+          </div>
+
+          <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-ink/50">
+            Getting it back to you
+          </p>
+          <div className="mt-2 space-y-2">
+            <OptionCard
+              label="We deliver it to your room"
+              description="Fresh clothes at your door. No walking."
+              feeLabel={`+₦${DELIVERY_FEE}`}
+              isSelected={logistics.returnMethod === "delivery"}
+              onSelect={() => setReturnMethod("delivery")}
+            />
+            <OptionCard
+              label="I'll collect it"
+              description="Pick up your clean laundry from us"
+              feeLabel="Free"
+              isSelected={logistics.returnMethod === "selfPickup"}
+              onSelect={() => setReturnMethod("selfPickup")}
+            />
+          </div>
+        </section>
+
         {/* Order summary card */}
-        <section className="mt-6 rounded-card border border-line p-5 shadow-soft">
+        <section className="mt-5 rounded-card border border-line p-5 shadow-soft">
           <h2 className="font-display text-base font-semibold text-ink">
             Order summary
           </h2>
@@ -191,13 +355,11 @@ export default function CheckoutPage() {
             <p className="font-mono text-ink/80">₦{formattedItemsTotal}</p>
           </div>
 
-          {(logistics.collectionMethod === "pickup" ||
-            logistics.returnMethod === "delivery" ||
-            logistics.express) && (
+          {logisticsTotal > 0 && (
             <div className="mt-3 space-y-1.5 border-t border-line pt-3">
               {logistics.collectionMethod === "pickup" && (
                 <div className="flex items-center justify-between text-sm">
-                  <p className="text-ink/70">Pickup from hostel</p>
+                  <p className="text-ink/70">Pickup from your room</p>
                   <p className="font-mono text-ink/80">
                     +₦{PICKUP_FEE.toLocaleString("en-NG")}
                   </p>
@@ -205,17 +367,9 @@ export default function CheckoutPage() {
               )}
               {logistics.returnMethod === "delivery" && (
                 <div className="flex items-center justify-between text-sm">
-                  <p className="text-ink/70">Delivery to hostel</p>
+                  <p className="text-ink/70">Delivery to your room</p>
                   <p className="font-mono text-ink/80">
                     +₦{DELIVERY_FEE.toLocaleString("en-NG")}
-                  </p>
-                </div>
-              )}
-              {logistics.express && (
-                <div className="flex items-center justify-between text-sm">
-                  <p className="text-ink/70">Express</p>
-                  <p className="font-mono text-ink/80">
-                    +₦{EXPRESS_FEE.toLocaleString("en-NG")}
                   </p>
                 </div>
               )}
@@ -233,18 +387,39 @@ export default function CheckoutPage() {
           </div>
         </section>
 
-        <p className="mt-4 text-xs leading-relaxed text-ink/60">
-          Tapping the button below sends your order rundown straight to our
-          WhatsApp line. We'll reply there with the account to pay into — once
-          you've paid, just let us know in that same chat.
+        <p
+          role="status"
+          className={`mt-5 rounded-xl px-4 py-3 text-sm ${
+            hours.isOpen
+              ? "bg-sky text-suds-dark"
+              : "bg-amber-50 text-amber-800"
+          }`}
+        >
+          {hours.message}
         </p>
+
+        <p className="mt-4 text-xs leading-relaxed text-ink/60">
+          Tapping the button below saves your order and opens WhatsApp with the
+          details filled in. We&apos;ll reply there with the account to pay
+          into.
+        </p>
+
+        {sendError && (
+          <p
+            role="alert"
+            className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"
+          >
+            {sendError}
+          </p>
+        )}
 
         <button
           type="button"
-          onClick={handleSendToWhatsApp}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-whatsapp px-6 py-4 text-sm font-semibold text-white shadow-soft transition hover:bg-whatsapp-dark active:scale-[0.98]"
+          onClick={handleSend}
+          disabled={isSending}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-whatsapp px-6 py-4 text-sm font-semibold text-white shadow-soft transition hover:bg-whatsapp-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Send Order via WhatsApp
+          {isSending ? "Saving your order…" : "Send Order via WhatsApp"}
         </button>
       </div>
     </main>

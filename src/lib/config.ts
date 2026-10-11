@@ -43,7 +43,12 @@ export const PICKUP_FEE = 300;
 // hostel costs extra.
 export const DELIVERY_FEE = 300;
 
-// Optional priority add-on, kept cheap so it's an easy upsell rather than a
-// big decision.
-export const EXPRESS_FEE = 200;
+// Operating hours (24-hour clock, Lagos time). Orders sent outside this window
+// are still saved, but they're flagged "after hours" in /admin and the
+// customer sees a heads-up on the checkout page.
+export const OPERATING_HOURS = {
+  openHour: 8,
+  closeHour: 20,
+  timeZone: "Africa/Lagos",
+};
 

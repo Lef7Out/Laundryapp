@@ -43,6 +43,41 @@ export type ReturnMethod = "selfPickup" | "delivery";
 export interface LogisticsState {
   collectionMethod: CollectionMethod;
   returnMethod: ReturnMethod;
-  express: boolean;
 }
 
+// One line of a saved order (stored as JSON in the orders table)
+export interface OrderItemLine {
+  id: ClothingItemId;
+  label: string;
+  white: number;
+  coloured: number;
+  subtotal: number;
+}
+
+export type OrderStatus =
+  | "new"
+  | "confirmed"
+  | "picked_up"
+  | "washing"
+  | "ready"
+  | "completed"
+  | "cancelled";
+
+// A row from the Supabase `orders` table
+export interface OrderRow {
+  id: string;
+  ref: string;
+  created_at: string;
+  customer_name: string;
+  phone: string;
+  hostel_room: string;
+  items: OrderItemLine[];
+  items_total: number;
+  logistics_total: number;
+  total: number;
+  collection_method: CollectionMethod;
+  return_method: ReturnMethod;
+  express: boolean;
+  after_hours: boolean;
+  status: OrderStatus;
+}

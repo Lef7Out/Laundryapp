@@ -4,24 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useOrder } from "@/context/OrderContext";
-import { CLOTHING_ITEMS, DELIVERY_FEE, EXPRESS_FEE, PICKUP_FEE } from "@/lib/config";
+import { CLOTHING_ITEMS } from "@/lib/config";
 import CounterControl from "@/components/CounterControl";
-import OptionCard from "@/components/OptionCard";
 import type { ClothingItemId } from "@/types";
 
 export default function SelectClothesPage() {
   const router = useRouter();
-  const {
-    order,
-    updateCount,
-    totalItems,
-    totalPrice,
-    getItemSubtotal,
-    logistics,
-    setCollectionMethod,
-    setReturnMethod,
-    setExpress,
-  } = useOrder();
+  const { order, updateCount, totalItems, itemsTotal, getItemSubtotal } =
+    useOrder();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
@@ -46,13 +36,13 @@ export default function SelectClothesPage() {
     );
   }
 
-  const formattedTotal = totalPrice.toLocaleString("en-NG");
+  const formattedTotal = itemsTotal.toLocaleString("en-NG");
 
   return (
     <main className="min-h-screen pb-32">
       <header className="border-b border-line px-6 py-6">
         <h1 className="font-display text-2xl font-bold text-ink">
-          What's in the pile?
+          What&apos;s in the pile?
         </h1>
         <p className="mt-1 text-sm text-ink/60">
           Add counts for white and coloured items separately.
@@ -104,72 +94,13 @@ export default function SelectClothesPage() {
         })}
       </section>
 
-      {/* Delivery & pickup options */}
-      <section className="space-y-5 px-6 pb-6">
-        <div>
-          <h2 className="font-display text-base font-semibold text-ink">
-            Getting it to us
-          </h2>
-          <div className="mt-3 space-y-2">
-            <OptionCard
-              label="I'll drop it off"
-              description="Bring your laundry to us yourself"
-              feeLabel="Free"
-              isSelected={logistics.collectionMethod === "dropoff"}
-              onSelect={() => setCollectionMethod("dropoff")}
-            />
-            <OptionCard
-              label="Pick it up from my hostel"
-              description="We collect it from your room"
-              feeLabel={`+₦${PICKUP_FEE}`}
-              isSelected={logistics.collectionMethod === "pickup"}
-              onSelect={() => setCollectionMethod("pickup")}
-            />
-          </div>
-        </div>
-
-        <div>
-          <h2 className="font-display text-base font-semibold text-ink">
-            Getting it back to you
-          </h2>
-          <div className="mt-3 space-y-2">
-            <OptionCard
-              label="I'll pick it up myself"
-              description="Collect your clean laundry from us"
-              feeLabel="Free"
-              isSelected={logistics.returnMethod === "selfPickup"}
-              onSelect={() => setReturnMethod("selfPickup")}
-            />
-            <OptionCard
-              label="Deliver it to my hostel"
-              description="We bring it back to your room"
-              feeLabel={`+₦${DELIVERY_FEE}`}
-              isSelected={logistics.returnMethod === "delivery"}
-              onSelect={() => setReturnMethod("delivery")}
-            />
-          </div>
-        </div>
-
-        <div>
-          <h2 className="font-display text-base font-semibold text-ink">
-            Speed
-          </h2>
-          <div className="mt-3">
-            <OptionCard
-              label="Express"
-              description="Jump the queue for faster turnaround"
-              feeLabel={`+₦${EXPRESS_FEE}`}
-              isSelected={logistics.express}
-              onSelect={() => setExpress(!logistics.express)}
-            />
-          </div>
-        </div>
-      </section>
+      {/* Sticky summary bar */}
       <div className="fixed inset-x-0 bottom-0 border-t border-line bg-white/95 px-6 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-4">
           <div>
             <p className="text-xs text-ink/55">
-              {totalItems} {totalItems === 1 ? "item" : "items"}
+              {totalItems} {totalItems === 1 ? "item" : "items"} · pickup &amp;
+              delivery next
             </p>
             <p className="font-mono text-lg font-bold text-ink">
               ₦{formattedTotal}

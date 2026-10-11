@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -141,21 +142,14 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-1.5 block text-sm font-medium text-ink"
-            >
-              Password
-            </label>
-            <input
+          <div>            
+            <PasswordInput
               id="password"
-              type="password"
-              autoComplete="new-password"
+              label="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-suds"
-              placeholder="At least 6 characters"
+              onChange={setPassword}
+              autoComplete="current-password"
+              placeholder="••••••••"
             />
           </div>
 

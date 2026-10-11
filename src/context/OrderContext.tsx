@@ -9,7 +9,7 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { CLOTHING_ITEMS, DELIVERY_FEE, EXPRESS_FEE, PICKUP_FEE } from "@/lib/config";
+import { CLOTHING_ITEMS, DELIVERY_FEE, PICKUP_FEE } from "@/lib/config";
 import type {
   ClothingItemId,
   CollectionMethod,
@@ -34,7 +34,6 @@ function buildDefaultLogistics(): LogisticsState {
   return {
     collectionMethod: "dropoff",
     returnMethod: "selfPickup",
-    express: false,
   };
 }
 
@@ -51,13 +50,18 @@ function loadInitialState(): OrderState {
   }
 }
 
+// Only reads the two fields we still use, so anything old left in the
+// browser's saved data (like a removed express option) is ignored.
 function loadInitialLogistics(): LogisticsState {
   if (typeof window === "undefined") return buildDefaultLogistics();
   try {
     const raw = window.localStorage.getItem(LOGISTICS_STORAGE_KEY);
     if (!raw) return buildDefaultLogistics();
     const parsed = JSON.parse(raw) as Partial<LogisticsState>;
-    return { ...buildDefaultLogistics(), ...parsed };
+    return {
+      collectionMethod: parsed.collectionMethod === "pickup" ? "pickup" : "dropoff",
+      returnMethod: parsed.returnMethod === "delivery" ? "delivery" : "selfPickup",
+    };
   } catch {
     return buildDefaultLogistics();
   }
@@ -77,9 +81,9 @@ interface OrderContextValue {
   ) => void;
   resetOrder: () => void;
   totalItems: number;
-  /** Sum of clothing items only, excluding pickup/delivery/express fees. */
+  /** Sum of clothing items only, excluding pickup/delivery fees. */
   itemsTotal: number;
-  /** Sum of any pickup, delivery, and express fees currently selected. */
+  /** Sum of any pickup and delivery fees currently selected. */
   logisticsTotal: number;
   /** itemsTotal + logisticsTotal — the grand total to charge/display. */
   totalPrice: number;
@@ -87,7 +91,6 @@ interface OrderContextValue {
   logistics: LogisticsState;
   setCollectionMethod: (method: CollectionMethod) => void;
   setReturnMethod: (method: ReturnMethod) => void;
-  setExpress: (value: boolean) => void;
 }
 
 const OrderContext = createContext<OrderContextValue | undefined>(undefined);
@@ -175,13 +178,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     [logistics, persistLogistics]
   );
 
-  const setExpress = useCallback(
-    (value: boolean) => {
-      persistLogistics({ ...logistics, express: value });
-    },
-    [logistics, persistLogistics]
-  );
-
   const priceMap = useMemo(() => {
     const map = {} as Record<ClothingItemId, number>;
     CLOTHING_ITEMS.forEach((item) => {
@@ -218,7 +214,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     let sum = 0;
     if (logistics.collectionMethod === "pickup") sum += PICKUP_FEE;
     if (logistics.returnMethod === "delivery") sum += DELIVERY_FEE;
-    if (logistics.express) sum += EXPRESS_FEE;
     return sum;
   }, [logistics]);
 
@@ -237,7 +232,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     logistics,
     setCollectionMethod,
     setReturnMethod,
-    setExpress,
   };
 
   return (
