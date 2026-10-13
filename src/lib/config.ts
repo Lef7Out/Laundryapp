@@ -48,7 +48,7 @@ export const DELIVERY_FEE = 300;
 // customer sees a heads-up on the checkout page.
 export const OPERATING_HOURS = {
   openHour: 8,
-  closeHour: 20,
+  closeHour: 22,
   timeZone: "Africa/Lagos",
 };
 
