@@ -14,34 +14,34 @@ export const BANK_DETAILS = {
 };
 
 export const CLOTHING_ITEMS = [
-  { id: "tshirt", label: "T-Shirt", price: 400, unitNote: "per piece" },
-  { id: "shirt", label: "Shirt", price: 400, unitNote: "per piece" },
-  { id: "trousers", label: "Trousers", price: 700, unitNote: "per piece" },
+  { id: "tshirt", label: "T-Shirt", price: 200, unitNote: "per piece" },
+  { id: "shirt", label: "Shirt", price: 200, unitNote: "per piece" },
+  { id: "trousers", label: "Trousers", price: 250, unitNote: "per piece" },
   {
     id: "sweatpantsHoodies",
     label: "Sweatpants / Hoodies",
-    price: 700,
+    price: 300,
     unitNote: "per piece",
   },
-  { id: "shorts", label: "Shorts", price: 400, unitNote: "per piece" },
+  { id: "shorts", label: "Shorts", price: 250, unitNote: "per piece" },
   {
     id: "underwear",
     label: "Underwear (Boxers, Vests, Bras, etc.)",
-    price: 400,
+    price: 200,
     unitNote: "per piece",
   },
-  { id: "socks", label: "Socks", price: 400, unitNote: "per pair" },
-  { id: "bedsheets", label: "Bedsheets", price: 700, unitNote: "per piece" },
-  { id: "duvets", label: "Duvets", price: 1500, unitNote: "per piece" },
+  { id: "socks", label: "Socks", price: 200, unitNote: "per pair" },
+  { id: "bedsheets", label: "Bedsheets", price: 400, unitNote: "per piece" },
+  { id: "duvets", label: "Duvets", price: 2000, unitNote: "per piece" },
 ] as const;
 
 // Leg 1 (dirty clothes -> laundry): dropoff is free (student brings it themselves),
 // pickup costs extra (someone collects it from the student's hostel room).
-export const PICKUP_FEE = 300;
+export const PICKUP_FEE = 400;
 
 // Leg 2 (clean clothes -> student): self pick-up is free, delivery to the
 // hostel costs extra.
-export const DELIVERY_FEE = 300;
+export const DELIVERY_FEE = 400;
 
 // Operating hours (24-hour clock, Lagos time). Orders sent outside this window
 // are still saved, but they're flagged "after hours" in /admin and the
