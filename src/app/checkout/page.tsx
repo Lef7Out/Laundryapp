@@ -7,13 +7,13 @@ import { supabase } from "@/lib/supabase";
 import { useOrder } from "@/context/OrderContext";
 import OptionCard from "@/components/OptionCard";
 import {
-  CLOTHING_ITEMS,
   DELIVERY_FEE,
   PICKUP_FEE,
   WHATSAPP_NUMBER,
 } from "@/lib/config";
 import { getHoursStatus } from "@/lib/hours";
-import type { ClothingItemId, OrderItemLine, UserProfile } from "@/types";
+import { buildItemLines as makeItemLines } from "@/lib/orderLines";
+import type { OrderItemLine, UserProfile } from "@/types";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -69,21 +69,7 @@ export default function CheckoutPage() {
   }, [router]);
 
   function buildItemLines(): OrderItemLine[] {
-    const lines: OrderItemLine[] = [];
-    CLOTHING_ITEMS.forEach((item) => {
-      const itemId = item.id as ClothingItemId;
-      const counts = order[itemId];
-      const pieces = counts.white + counts.coloured;
-      if (pieces === 0) return;
-      lines.push({
-        id: itemId,
-        label: item.label,
-        white: counts.white,
-        coloured: counts.coloured,
-        subtotal: pieces * item.price,
-      });
-    });
-    return lines;
+    return makeItemLines(order);
   }
 
   function buildWhatsAppMessage(ref: string, isAfterHours: boolean): string {
@@ -100,11 +86,8 @@ export default function CheckoutPage() {
     lines.push("*Order rundown:*");
 
     buildItemLines().forEach((line) => {
-      const parts: string[] = [];
-      if (line.white > 0) parts.push(`${line.white} white`);
-      if (line.coloured > 0) parts.push(`${line.coloured} coloured`);
       lines.push(
-        `• ${line.label} — ${parts.join(", ")} (₦${line.subtotal.toLocaleString(
+        `• ${line.label} — ${line.detail} (₦${line.subtotal.toLocaleString(
           "en-NG"
         )})`
       );
@@ -319,35 +302,20 @@ export default function CheckoutPage() {
             Order summary
           </h2>
           <div className="mt-3 space-y-2">
-            {CLOTHING_ITEMS.map((item) => {
-              const itemId = item.id as ClothingItemId;
-              const counts = order[itemId];
-              const pieces = counts.white + counts.coloured;
-              if (pieces === 0) return null;
-
-              const lineTotal = pieces * item.price;
-              const detail = [
-                counts.white > 0 ? `${counts.white} white` : null,
-                counts.coloured > 0 ? `${counts.coloured} coloured` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ");
-
-              return (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <div>
-                    <p className="text-ink">{item.label}</p>
-                    <p className="text-xs text-ink/50">{detail}</p>
-                  </div>
-                  <p className="font-mono text-ink/80">
-                    ₦{lineTotal.toLocaleString("en-NG")}
-                  </p>
+            {buildItemLines().map((line) => (
+              <div
+                key={line.id}
+                className="flex items-center justify-between text-sm"
+              >
+                <div>
+                  <p className="text-ink">{line.label}</p>
+                  <p className="text-xs text-ink/50">{line.detail}</p>
                 </div>
-              );
-            })}
+                <p className="font-mono text-ink/80">
+                  ₦{line.subtotal.toLocaleString("en-NG")}
+                </p>
+              </div>
+            ))}
           </div>
 
           <div className="mt-3 flex items-center justify-between text-sm">

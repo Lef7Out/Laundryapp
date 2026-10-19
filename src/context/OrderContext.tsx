@@ -9,26 +9,20 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { CLOTHING_ITEMS, DELIVERY_FEE, PICKUP_FEE } from "@/lib/config";
+import { DELIVERY_FEE, PICKUP_FEE, SERVICE_LINES } from "@/lib/config";
+import { emptyOrder } from "@/lib/orderLines";
 import type {
-  ClothingItemId,
   CollectionMethod,
-  ColourVariant,
+  LineId,
   LogisticsState,
   OrderState,
   ReturnMethod,
 } from "@/types";
 
-const ORDER_STORAGE_KEY = "hostelwash_order_v1";
+const ORDER_STORAGE_KEY = "hostelwash_order_v2";
 const LOGISTICS_STORAGE_KEY = "hostelwash_logistics_v1";
 
-function buildEmptyState(): OrderState {
-  const state = {} as OrderState;
-  CLOTHING_ITEMS.forEach((item) => {
-    state[item.id as ClothingItemId] = { white: 0, coloured: 0 };
-  });
-  return state;
-}
+const buildEmptyState = emptyOrder;
 
 function buildDefaultLogistics(): LogisticsState {
   return {
@@ -42,9 +36,13 @@ function loadInitialState(): OrderState {
   try {
     const raw = window.localStorage.getItem(ORDER_STORAGE_KEY);
     if (!raw) return buildEmptyState();
-    const parsed = JSON.parse(raw) as Partial<OrderState>;
+    const parsed = JSON.parse(raw) as Partial<Record<LineId, unknown>>;
     const base = buildEmptyState();
-    return { ...base, ...parsed };
+    (Object.keys(base) as LineId[]).forEach((id) => {
+      const v = parsed[id];
+      if (typeof v === "number" && v > 0) base[id] = Math.floor(v);
+    });
+    return base;
   } catch {
     return buildEmptyState();
   }
@@ -69,16 +67,7 @@ function loadInitialLogistics(): LogisticsState {
 
 interface OrderContextValue {
   order: OrderState;
-  updateCount: (
-    itemId: ClothingItemId,
-    variant: ColourVariant,
-    delta: number
-  ) => void;
-  setCount: (
-    itemId: ClothingItemId,
-    variant: ColourVariant,
-    value: number
-  ) => void;
+  updateCount: (lineId: LineId, delta: number) => void;
   resetOrder: () => void;
   totalItems: number;
   /** Sum of clothing items only, excluding pickup/delivery fees. */
@@ -87,7 +76,6 @@ interface OrderContextValue {
   logisticsTotal: number;
   /** itemsTotal + logisticsTotal — the grand total to charge/display. */
   totalPrice: number;
-  getItemSubtotal: (itemId: ClothingItemId) => number;
   logistics: LogisticsState;
   setCollectionMethod: (method: CollectionMethod) => void;
   setReturnMethod: (method: ReturnMethod) => void;
@@ -118,46 +106,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const updateCount = useCallback(
-    (itemId: ClothingItemId, variant: ColourVariant, delta: number) => {
-      setOrder((prev) => {
-        const currentValue = prev[itemId][variant];
-        const nextValue = Math.max(0, currentValue + delta);
-        const next: OrderState = {
-          ...prev,
-          [itemId]: {
-            ...prev[itemId],
-            [variant]: nextValue,
-          },
-        };
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
-        }
-        return next;
-      });
-    },
-    []
-  );
-
-  const setCount = useCallback(
-    (itemId: ClothingItemId, variant: ColourVariant, value: number) => {
-      const safeValue = Math.max(0, Math.floor(value) || 0);
-      setOrder((prev) => {
-        const next: OrderState = {
-          ...prev,
-          [itemId]: {
-            ...prev[itemId],
-            [variant]: safeValue,
-          },
-        };
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
-        }
-        return next;
-      });
-    },
-    []
-  );
+  const updateCount = useCallback((lineId: LineId, delta: number) => {
+    setOrder((prev) => {
+      const next: OrderState = {
+        ...prev,
+        [lineId]: Math.max(0, prev[lineId] + delta),
+      };
+      // Ironing can't exceed the number of everyday clothes being washed.
+      const everyday = next.everydayWhite + next.everydayColoured;
+      if (next.ironing > everyday) next.ironing = everyday;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
+      }
+      return next;
+    });
+  }, []);
 
   const resetOrder = useCallback(() => {
     persistOrder(buildEmptyState());
@@ -178,37 +141,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     [logistics, persistLogistics]
   );
 
-  const priceMap = useMemo(() => {
-    const map = {} as Record<ClothingItemId, number>;
-    CLOTHING_ITEMS.forEach((item) => {
-      map[item.id as ClothingItemId] = item.price;
-    });
-    return map;
-  }, []);
-
-  const getItemSubtotal = useCallback(
-    (itemId: ClothingItemId) => {
-      const counts = order[itemId];
-      const price = priceMap[itemId];
-      return (counts.white + counts.coloured) * price;
-    },
-    [order, priceMap]
-  );
-
   const totalItems = useMemo(() => {
-    return Object.values(order).reduce(
-      (sum, counts) => sum + counts.white + counts.coloured,
+    // Ironing is an add-on to pieces already counted, so it isn't counted twice.
+    return (Object.keys(order) as LineId[]).reduce(
+      (sum, id) => (id === "ironing" ? sum : sum + order[id]),
       0
     );
   }, [order]);
 
   const itemsTotal = useMemo(() => {
-    return (Object.keys(order) as ClothingItemId[]).reduce((sum, itemId) => {
-      const counts = order[itemId];
-      const price = priceMap[itemId];
-      return sum + (counts.white + counts.coloured) * price;
-    }, 0);
-  }, [order, priceMap]);
+    return SERVICE_LINES.reduce((sum, l) => sum + order[l.id] * l.price, 0);
+  }, [order]);
 
   const logisticsTotal = useMemo(() => {
     let sum = 0;
@@ -222,13 +165,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const value: OrderContextValue = {
     order,
     updateCount,
-    setCount,
     resetOrder,
     totalItems,
     itemsTotal,
     logisticsTotal,
     totalPrice,
-    getItemSubtotal,
     logistics,
     setCollectionMethod,
     setReturnMethod,

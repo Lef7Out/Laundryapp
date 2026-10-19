@@ -87,7 +87,7 @@ export default function HomePage() {
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <div>
               <p className="font-mono text-lg font-semibold text-suds-dark">
-                ₦400
+                ₦250
               </p>
               <p className="mt-1 text-xs text-ink/60">
                 Tops, bottoms &amp; undergarments
@@ -95,7 +95,7 @@ export default function HomePage() {
             </div>
             <div>
               <p className="font-mono text-lg font-semibold text-suds-dark">
-                ₦700
+                ₦400
               </p>
               <p className="mt-1 text-xs text-ink/60">
                 Trousers, heavy wear &amp; bedsheets
@@ -103,7 +103,7 @@ export default function HomePage() {
             </div>
             <div>
               <p className="font-mono text-lg font-semibold text-suds-dark">
-                ₦1,500
+                ₦1000
               </p>
               <p className="mt-1 text-xs text-ink/60">Duvets</p>
             </div>

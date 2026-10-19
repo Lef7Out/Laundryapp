@@ -402,14 +402,13 @@ export default function AdminPage() {
                           <span className="text-ink">
                             {line.label}{" "}
                             <span className="text-xs text-ink/50">
-                              {[
-                                line.white > 0 ? `${line.white} white` : null,
-                                line.coloured > 0
-                                  ? `${line.coloured} coloured`
-                                  : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
+                              {line.detail ??
+                                [
+                                  (line.white ?? 0) > 0 ? `${line.white} white` : null,
+                                  (line.coloured ?? 0) > 0 ? `${line.coloured} coloured` : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
                             </span>
                           </span>
                           <span className="font-mono text-ink/70">

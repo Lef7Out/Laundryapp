@@ -899,6 +899,9 @@ video {
   margin-left: auto;
   margin-right: auto;
 }
+.mb-1 {
+  margin-bottom: 0.25rem;
+}
 .mb-1\.5 {
   margin-bottom: 0.375rem;
 }
@@ -913,6 +916,9 @@ video {
 }
 .mt-1 {
   margin-top: 0.25rem;
+}
+.mt-1\.5 {
+  margin-top: 0.375rem;
 }
 .mt-2 {
   margin-top: 0.5rem;
@@ -1231,9 +1237,6 @@ video {
 .text-center {
   text-align: center;
 }
-.text-right {
-  text-align: right;
-}
 .font-body {
   font-family: var(--font-body);
 }
@@ -1496,5 +1499,13 @@ body {
     font-size: 1.125rem;
     line-height: 1.75rem;
   }
+}
+
+.\[\&_button\:last-child\]\:pointer-events-none button:last-child {
+  pointer-events: none;
+}
+
+.\[\&_button\:last-child\]\:opacity-40 button:last-child {
+  opacity: 0.4;
 }
 

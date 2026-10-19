@@ -1,32 +1,19 @@
 // src/types/index.ts
 
-export type ClothingItemId =
-  | "tshirt"
-  | "shirt"
-  | "trousers"
-  | "sweatpantsHoodies"
-  | "shorts"
-  | "underwear"
-  | "socks"
-  | "bedsheets"
-  | "duvets";
+export type LineId =
+  | "everydayWhite"
+  | "everydayColoured"
+  | "ironing"
+  | "towel"
+  | "bedsheet"
+  | "duvetThick"
+  | "duvetLight"
+  | "shoes"
+  | "suitWashIron"
+  | "suitIronOnly";
 
-export type ColourVariant = "white" | "coloured";
-
-export interface ItemCount {
-  white: number;
-  coloured: number;
-}
-
-export type OrderState = Record<ClothingItemId, ItemCount>;
-
-export interface ClothingItemDefinition {
-  id: ClothingItemId;
-  label: string;
-  price: number;
-  unitNote: string;
-}
-
+// Quantity per line id.
+export type OrderState = Record<LineId, number>;
 export interface UserProfile {
   fullName: string;
   phoneNumber: string;
@@ -47,10 +34,13 @@ export interface LogisticsState {
 
 // One line of a saved order (stored as JSON in the orders table)
 export interface OrderItemLine {
-  id: ClothingItemId;
+  id: string;
   label: string;
-  white: number;
-  coloured: number;
+  /** Readable breakdown, e.g. "3 white · 2 coloured". Missing on older orders. */
+  detail?: string;
+  /** Only present on orders saved before the price-list update. */
+  white?: number;
+  coloured?: number;
   subtotal: number;
 }
 
