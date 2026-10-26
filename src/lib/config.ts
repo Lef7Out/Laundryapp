@@ -1,7 +1,7 @@
 // src/lib/config.ts
 // Central place to edit business details. Update these before going live.
 
-export const APP_NAME = "FatedLaundry";
+export const APP_NAME = "ActiveLaundry";
 
 // Full international format, no "+", no spaces (WhatsApp API requirement).
 // Example: Nigerian number 0803 123 4567 -> "2348031234567"

@@ -25,7 +25,7 @@ const utilityFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HostelWash — Laundry, sorted from your room",
+  title: "ActiveLaundry — Laundry, sorted from your room",
   description:
     "Book a laundry pickup in under a minute. Pick your items, confirm on WhatsApp, we handle the rest.",
 };
