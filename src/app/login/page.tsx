@@ -96,7 +96,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-center text-sm text-ink/65">
-          New to HostelWash?{" "}
+          New to ActiveLaundry?{" "}
           <Link href="/register" className="font-semibold text-suds">
             Create an account
           </Link>
